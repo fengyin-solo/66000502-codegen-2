@@ -40,6 +40,34 @@ export interface OptimizationResult {
   converged: boolean
 }
 
+/** 曲面网格（/api/surface 返回），z[j][i] 对应 (x[i], y[j]) */
+export interface SurfaceGrid {
+  functionId: string
+  x: number[]
+  y: number[]
+  z: number[][]
+  minPoint: { x: number; y: number; z: number }
+}
+
+export type LayerStyle = 'solid' | 'dashed' | 'points'
+
+/** 曲面分层模块中的一条分层：一次独立运行的结果及其展示设置 */
+export interface SurfaceLayer {
+  id: string
+  name: string
+  functionId: string
+  params: OptimizationParams
+  visible: boolean
+  color: string
+  lineStyle: LayerStyle
+  /** 截取的步数区间 [起, 止]（含端点） */
+  range: [number, number]
+  status: 'loading' | 'ok' | 'error'
+  /** 仅当 status 为 error 时有值：该层加载失败的原因 */
+  error: string | null
+  result: OptimizationResult | null
+}
+
 export const TEST_FUNCTIONS: TestFunction[] = [
   { id: 'rosenbrock', name: 'Rosenbrock 香蕉函数', formula: 'f=(1-x)²+100(y-x²)²', xRange: [-2, 2], yRange: [-1, 3] },
   { id: 'himmelblau', name: 'Himmelblau函数', formula: 'f=(x²+y-11)²+(x+y²-7)²', xRange: [-6, 6], yRange: [-6, 6] },

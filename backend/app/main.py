@@ -1,7 +1,7 @@
 import math
 import random
 import numpy as np
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -29,6 +29,15 @@ GRADIENTS = {
     "booth": lambda x, y: np.array([2 * (x + 2 * y - 7) + 4 * (2 * x + y - 5), 4 * (x + 2 * y - 7) + 2 * (2 * x + y - 5)]),
 }
 
+RANGES = {
+    "rosenbrock": ((-2.0, 2.0), (-1.0, 3.0)),
+    "himmelblau": ((-6.0, 6.0), (-6.0, 6.0)),
+    "rastrigin": ((-5.12, 5.12), (-5.12, 5.12)),
+    "sphere": ((-5.0, 5.0), (-5.0, 5.0)),
+    "beale": ((-4.5, 4.5), (-4.5, 4.5)),
+    "booth": ((-10.0, 10.0), (-10.0, 10.0)),
+}
+
 HESSIANS = {
     "rosenbrock": lambda x, y: np.array([
         [2 - 400 * y + 1200 * x ** 2, -400 * x],
@@ -49,6 +58,30 @@ class OptimizationRequest(BaseModel):
     momentum: float = 0.9
     temperature: float = 100.0
     coolingRate: float = 0.95
+
+
+@app.get("/api/surface")
+def surface(functionId: str = "rosenbrock", resolution: int = 80):
+    """返回测试函数在其定义域上的曲面网格及网格采样最低点，供 3D 分层曲面模块使用。"""
+    fn = FUNCTIONS.get(functionId)
+    rng = RANGES.get(functionId)
+    if fn is None or rng is None:
+        raise HTTPException(status_code=404, detail=f"未知测试函数: {functionId}")
+    resolution = max(10, min(resolution, 160))
+    (x0, x1), (y0, y1) = rng
+    xs = np.linspace(x0, x1, resolution)
+    ys = np.linspace(y0, y1, resolution)
+    X, Y = np.meshgrid(xs, ys)
+    Z = np.vectorize(fn)(X, Y)
+    idx = np.unravel_index(int(np.argmin(Z)), Z.shape)
+    min_point = {"x": float(X[idx]), "y": float(Y[idx]), "z": float(Z[idx])}
+    return {
+        "functionId": functionId,
+        "x": [float(v) for v in xs],
+        "y": [float(v) for v in ys],
+        "z": [[float(v) for v in row] for row in Z],
+        "minPoint": min_point,
+    }
 
 
 @app.post("/api/optimize")
